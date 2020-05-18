@@ -3,7 +3,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow 
 from flask_restful import Api, Resource 
 
-#TODO CONTROLLERS JOINS BOOLS
+#TODO BUG: FORIEGN_KEY, JOINS
+
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ipsum.db'
 db = SQLAlchemy(app)
@@ -17,15 +18,15 @@ class Member(db.Model):
     last_name = db.Column(db.String(50))
     is_admin = db.Column(db.Boolean(), unique=True, default=False)
 
-    billing_address_id = db.Column(db.Integer, db.ForeignKey("address.id"))
-    shipping_address_id = db.Column(db.Integer, db.ForeignKey("address.id"))
+    # billing_address_id = db.Column(db.Integer, db.ForeignKey("address.id"), nullable=True)
+    # shipping_address_id = db.Column(db.Integer, db.ForeignKey("address.id"), nullable=True)
 
-    billing_address = db.relationship("Address")
-    shipping_address = db.relationship("Address")
+    # billing_address_id = db.relationship("Address", foreign_keys=[billing_address_id])
+    # shipping_address_id = db.relationship("Address", foreign_keys=[shipping_address_id])
     
     def __repr__(self):
         return '<Member %s>' % self.first_name
-    
+
 class MemberSchema(ma.Schema):
     class Meta:
         fields = ("id", "first_name", "last_name", "is_admin")
@@ -82,12 +83,12 @@ api.add_resource(MemberResource, '/members/<int:member_id>')
 
 class Address(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    address_1 = db.Column(db.String(255))
-    address_2 = db.Column(db.String(255))
-    city = db.Column(db.String(255))
-    state = db.Column(db.String(255))
-    country = db.Column(db.String(255))
-    postal_code = db.Column(db.Integer)
+    address_1 = db.Column(db.String(255), nullable=True)
+    address_2 = db.Column(db.String(255), nullable=True)
+    city = db.Column(db.String(255), nullable=True)
+    state = db.Column(db.String(255), nullable=True)
+    country = db.Column(db.String(255), nullable=True)
+    postal_code = db.Column(db.String(255), nullable=True)
 
     def __repr__(self):
         return '<Address %s>' % self.address_1
@@ -103,7 +104,7 @@ addresses_schema = AddressSchema(many=True)
 class AddressListResource(Resource):
     def get(self):
         addresses = Address.query.all()
-        return addresses_schema.dump(addresses_schema)
+        return addresses_schema.dump(addresses)
 
     def post(self):
         new_address = Address(
@@ -117,6 +118,8 @@ class AddressListResource(Resource):
         db.session.add(new_address)
         db.session.comit()
         return address_schema(new_address)
+
+api.add_resource(AddressListResource, '/addresses')
 
 
 # Product Model & Schema
