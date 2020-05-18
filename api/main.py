@@ -1,41 +1,49 @@
-from flask import Flask, request # change
+from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
-from flask_marshmallow import Marshmallow # new
-from flask_restful import Api, Resource # new
+from flask_marshmallow import Marshmallow 
+from flask_restful import Api, Resource 
 
+#TODO CONTROLLERS JOINS BOOLS
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ipsum.db'
 db = SQLAlchemy(app)
-ma = Marshmallow(app) # new
-api = Api(app) # new
+ma = Marshmallow(app)
+api = Api(app)
 
 # Member Model
 class Member(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(50))
     last_name = db.Column(db.String(50))
-    # member_address_id = db.Column(db.Integer, ForeignKey('address.id'))
-    # is_admin = db.Column(db.Boolean()) # look database boolean for sqlA
+    is_admin = db.Column(db.Boolean(), unique=True, default=False)
 
+    billing_address_id = db.Column(db.Integer, db.ForeignKey("address.id"))
+    shipping_address_id = db.Column(db.Integer, db.ForeignKey("address.id"))
+
+    billing_address = db.relationship("Address")
+    shipping_address = db.relationship("Address")
+    
+    def __repr__(self):
+        return '<Member %s>' % self.first_name
+    
 class MemberSchema(ma.Schema):
     class Meta:
-        fields = ("id", "first_name", "last_name")
+        fields = ("id", "first_name", "last_name", "is_admin")
 
 member_schema = MemberSchema()
-member_schema = MemberSchema(many=True)
+members_schema = MemberSchema(many=True)
 
 #Member CRUD functions
 class MemberListResource(Resource):
     def get(self):
         members = Member.query.all()
-        return member_schema.dump(members)
+        return members_schema.dump(members)
     
     def post(self):
         new_member = Member(
             first_name=request.json['first_name'],
             last_name=request.json['last_name'],
-            # member_address_id=request.json['member_address_id'],
-            # is_admin=request.json['is_admin']
+            is_admin=request.json['is_admin']
         )
         db.session.add(new_member)
         db.session.commit()
@@ -53,10 +61,10 @@ class MemberResource(Resource):
             member.first_name = request.json['first_name']
         if 'last_name' in request.json:
             member.last_name = request.json['last_name']
+        if 'is_admin' in request.json:
+            member.is_admin = request.json['is_admin']
         # if 'member_address_id' in request.json:
         #     member.member_address_id = request.json['member_address_id']
-        # if 'is_admin' in request.json:
-        #     member.is_admin = request.json['is_admin']
 
         db.session.commit()
         return member_schema.dump(member)
@@ -72,23 +80,47 @@ api.add_resource(MemberListResource, '/members')
 api.add_resource(MemberResource, '/members/<int:member_id>')
 
 
-#Member Address
-# class MemberAddress(db.Model):
-#     id = db.Column(db.Integer, primary_key=True)
-#     address_1 = db.Column(db.String(255))
-#     address_2 = db.Column(db.String(255))
-#     city = db.Column(db.String(255))
-#     state = db.Column(db.String(255))
-#     country = db.Column(db.String(255))
-#     postal_code = db.Column(db.Integer)
+class Address(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    address_1 = db.Column(db.String(255))
+    address_2 = db.Column(db.String(255))
+    city = db.Column(db.String(255))
+    state = db.Column(db.String(255))
+    country = db.Column(db.String(255))
+    postal_code = db.Column(db.Integer)
 
-# class MemberAddressSchema(ma.Schema):
-#     class Meta:
-#         fields = ("id", "address_1", "address_2", "city", "state", "country", "postal_code")
+    def __repr__(self):
+        return '<Address %s>' % self.address_1
+    
+
+class AddressSchema(ma.Schema):
+    class Meta:
+        fields = ("id", "address_1", "address_2", "city", "state", "country", "postal_code")
+
+address_schema = AddressSchema()
+addresses_schema = AddressSchema(many=True) 
+
+class AddressListResource(Resource):
+    def get(self):
+        addresses = Address.query.all()
+        return addresses_schema.dump(addresses_schema)
+
+    def post(self):
+        new_address = Address(
+            address_1 = request.json['address_1'],
+            address_2 = request.json['address_2'],
+            city = request.json['city'],
+            state = request.json['state'],
+            country = request.json['country'],
+            postal_code = request.json['postal_code']
+        )
+        db.session.add(new_address)
+        db.session.comit()
+        return address_schema(new_address)
+
 
 # Product Model & Schema
 class Product(db.Model):
-    __tabelname__ = 'product'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50))
     description = db.Column(db.String())
