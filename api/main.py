@@ -3,7 +3,6 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow 
 from flask_restful import Api, Resource 
 
-#TODO BUG: FORIEGN_KEY, JOINS
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ipsum.db'
@@ -16,7 +15,7 @@ class Member(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(50))
     last_name = db.Column(db.String(50))
-    is_admin = db.Column(db.Boolean(), unique=True, default=False)
+    # is_admin = db.Column(db.Boolean)
 
     # billing_address_id = db.Column(db.Integer, db.ForeignKey("address.id"), nullable=True)
     # shipping_address_id = db.Column(db.Integer, db.ForeignKey("address.id"), nullable=True)
@@ -29,7 +28,7 @@ class Member(db.Model):
 
 class MemberSchema(ma.Schema):
     class Meta:
-        fields = ("id", "first_name", "last_name", "is_admin")
+        fields = ("id", "first_name", "last_name")
 
 member_schema = MemberSchema()
 members_schema = MemberSchema(many=True)
@@ -44,7 +43,6 @@ class MemberListResource(Resource):
         new_member = Member(
             first_name=request.json['first_name'],
             last_name=request.json['last_name'],
-            is_admin=request.json['is_admin']
         )
         db.session.add(new_member)
         db.session.commit()
@@ -108,16 +106,16 @@ class AddressListResource(Resource):
 
     def post(self):
         new_address = Address(
-            address_1 = request.json['address_1'],
-            address_2 = request.json['address_2'],
-            city = request.json['city'],
-            state = request.json['state'],
-            country = request.json['country'],
-            postal_code = request.json['postal_code']
+            address_1=request.json['address_1'],
+            address_2=request.json['address_2'],
+            city=request.json['city'],
+            state=request.json['state'],
+            country=request.json['country'],
+            postal_code=request.json['postal_code']
         )
         db.session.add(new_address)
-        db.session.comit()
-        return address_schema(new_address)
+        db.session.commit()
+        return address_schema.dump(new_address)
 
 api.add_resource(AddressListResource, '/addresses')
 
@@ -127,6 +125,7 @@ class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50))
     description = db.Column(db.String())
+
     # product_option_id = db.Column(db.Integer, ForeignKey('ProductOption.id'))
     # product_category_id = db.Column(db.Integer, ForeignKey('ProductCategory.id'))
     
@@ -151,6 +150,7 @@ class ProductListResource(Resource):
         new_product = Product(
             name=request.json['name'],
             description=request.json['description'],
+            
             # product_option_id=request.json['product_option_id'],
             # product_category_id=request.json['product_category_id']
         )
