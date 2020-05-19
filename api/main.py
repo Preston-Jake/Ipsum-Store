@@ -17,13 +17,38 @@ class Member(db.Model):
     last_name = db.Column(db.String(50))
     is_admin = db.Column(db.Boolean, unique=False, default=False)
 
+    billing_address_id = db.Column(
+        db.Integer,
+        db.ForeignKey("address.id")
+        )
+    shipping_address_id = db.Column(
+        db.Integer,
+        db.ForeignKey("address.id")
+    )
+
+    billing_address = db.relationship(
+        "Address",
+        foreign_keys=[billing_address_id]
+        )
+    shipping_address = db.relationship(
+        "Address",
+        foreign_keys=[shipping_address_id]
+        )
+
     def __repr__(self):
         return '<Member %s>' % self.first_name
 
 
 class MemberSchema(ma.Schema):
     class Meta:
-        fields = ("id", "first_name", "last_name", "is_admin")
+        fields = (
+            "id",
+            "first_name",
+            "last_name",
+            "is_admin",
+            "billing_address_id",
+            "shipping_address_id"
+            )
 
 
 member_schema = MemberSchema()
@@ -41,7 +66,9 @@ class MemberListResource(Resource):
         new_member = Member(
             first_name=request.json['first_name'],
             last_name=request.json['last_name'],
-            is_admin=request.json['is_admin']
+            is_admin=request.json['is_admin'],
+            billing_address_id=request.json['billing_address_id'],
+            shipping_address_id=request.json['shipping_address_id']
         )
         db.session.add(new_member)
         db.session.commit()
@@ -62,8 +89,6 @@ class MemberResource(Resource):
             member.last_name = request.json['last_name']
         if 'is_admin' in request.json:
             member.is_admin = request.json['is_admin']
-        # if 'member_address_id' in request.json:
-        #     member.member_address_id = request.json['member_address_id']
 
         db.session.commit()
         return member_schema.dump(member)
@@ -83,12 +108,12 @@ api.add_resource(MemberResource, '/members/<int:member_id>')
 
 class Address(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    address_1 = db.Column(db.String(255), nullable=True)
+    address_1 = db.Column(db.String(255), nullable=False)
     address_2 = db.Column(db.String(255), nullable=True)
-    city = db.Column(db.String(255), nullable=True)
-    state = db.Column(db.String(255), nullable=True)
-    country = db.Column(db.String(255), nullable=True)
-    postal_code = db.Column(db.String(255), nullable=True)
+    city = db.Column(db.String(255), nullable=False)
+    state = db.Column(db.String(255), nullable=False)
+    country = db.Column(db.String(255), nullable=False)
+    postal_code = db.Column(db.String(255), nullable=False)
 
     def __repr__(self):
         return '<Address %s>' % self.address_1
@@ -107,7 +132,7 @@ class AddressSchema(ma.Schema):
 
 
 address_schema = AddressSchema()
-addresses_schema = AddressSchema(many=True) 
+addresses_schema = AddressSchema(many=True)
 
 
 class AddressListResource(Resource):
@@ -138,9 +163,6 @@ class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50))
     description = db.Column(db.String())
-
-    # product_option_id = db.Column(db.Integer, ForeignKey('ProductOption.id'))
-    # product_category_id = db.Column(db.Integer, ForeignKey('ProductCategory.id'))
 
     def __repr__(self):
         return '<Product %s>' % self.name
