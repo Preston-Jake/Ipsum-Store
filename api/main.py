@@ -1,7 +1,7 @@
 from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
-from flask_marshmallow import Marshmallow 
-from flask_restful import Api, Resource 
+from flask_marshmallow import Marshmallow
+from flask_restful import Api, Resource
 
 
 app = Flask(__name__)
@@ -10,49 +10,49 @@ db = SQLAlchemy(app)
 ma = Marshmallow(app)
 api = Api(app)
 
-# Member Model
+
 class Member(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(50))
     last_name = db.Column(db.String(50))
-    # is_admin = db.Column(db.Boolean)
+    is_admin = db.Column(db.Boolean, unique=False, default=False)
 
-    # billing_address_id = db.Column(db.Integer, db.ForeignKey("address.id"), nullable=True)
-    # shipping_address_id = db.Column(db.Integer, db.ForeignKey("address.id"), nullable=True)
-
-    # billing_address_id = db.relationship("Address", foreign_keys=[billing_address_id])
-    # shipping_address_id = db.relationship("Address", foreign_keys=[shipping_address_id])
-    
     def __repr__(self):
         return '<Member %s>' % self.first_name
 
+
 class MemberSchema(ma.Schema):
     class Meta:
-        fields = ("id", "first_name", "last_name")
+        fields = ("id", "first_name", "last_name", "is_admin")
+
 
 member_schema = MemberSchema()
 members_schema = MemberSchema(many=True)
 
-#Member CRUD functions
+# Member CRUD functions
+
+
 class MemberListResource(Resource):
     def get(self):
         members = Member.query.all()
         return members_schema.dump(members)
-    
+
     def post(self):
         new_member = Member(
             first_name=request.json['first_name'],
             last_name=request.json['last_name'],
+            is_admin=request.json['is_admin']
         )
         db.session.add(new_member)
         db.session.commit()
         return member_schema.dump(new_member)
 
+
 class MemberResource(Resource):
     def get(self, member_id):
         member = Member.query.get_or_404(member_id)
         return member_schema.dump(member)
-        
+
     def patch(self, member_id):
         member = Member.query.get_or_404(member_id)
 
@@ -75,6 +75,8 @@ class MemberResource(Resource):
         return '', 204
 
 # Member routing
+
+
 api.add_resource(MemberListResource, '/members')
 api.add_resource(MemberResource, '/members/<int:member_id>')
 
@@ -90,16 +92,26 @@ class Address(db.Model):
 
     def __repr__(self):
         return '<Address %s>' % self.address_1
-    
+
 
 class AddressSchema(ma.Schema):
     class Meta:
-        fields = ("id", "address_1", "address_2", "city", "state", "country", "postal_code")
+        fields = (
+            "id",
+            "address_1",
+            "address_2", "city",
+            "state",
+            "country",
+            "postal_code"
+            )
+
 
 address_schema = AddressSchema()
 addresses_schema = AddressSchema(many=True) 
 
+
 class AddressListResource(Resource):
+
     def get(self):
         addresses = Address.query.all()
         return addresses_schema.dump(addresses)
@@ -117,6 +129,7 @@ class AddressListResource(Resource):
         db.session.commit()
         return address_schema.dump(new_address)
 
+
 api.add_resource(AddressListResource, '/addresses')
 
 
@@ -128,29 +141,32 @@ class Product(db.Model):
 
     # product_option_id = db.Column(db.Integer, ForeignKey('ProductOption.id'))
     # product_category_id = db.Column(db.Integer, ForeignKey('ProductCategory.id'))
-    
+
     def __repr__(self):
         return '<Product %s>' % self.name
+
 
 class ProductSchema(ma.Schema):
     class Meta:
         fields = ("id", "name", "description")
 
+
 product_schema = ProductSchema()
 products_schema = ProductSchema(many=True)
 
-#Product CRUD functions
+# Product CRUD functions
+
 
 class ProductListResource(Resource):
     def get(self):
         products = Product.query.all()
         return products_schema.dump(products)
-    
+
     def post(self):
         new_product = Product(
             name=request.json['name'],
             description=request.json['description'],
-            
+
             # product_option_id=request.json['product_option_id'],
             # product_category_id=request.json['product_category_id']
         )
@@ -158,11 +174,12 @@ class ProductListResource(Resource):
         db.session.commit()
         return product_schema.dump(new_product)
 
+
 class ProductResource(Resource):
     def get(self, product_id):
         product = Product.query.get_or_404(product_id)
         return product_schema.dump(product)
-        
+
     def patch(self, product_id):
         product = Product.query.get_or_404(product_id)
 
@@ -185,13 +202,13 @@ class ProductResource(Resource):
         return '', 204
 
 # product routing
+
+
 api.add_resource(ProductListResource, '/products')
 api.add_resource(ProductResource, '/products/<int:product_id>')
 
 
-
 # Product Option Model & Schema
-
 # class ProductOption(db.Model):
 #     __tabelname__ = 'product_option'
 #     id = db.Column(db.Integer, primary_key=True)
