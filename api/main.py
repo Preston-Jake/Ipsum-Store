@@ -54,8 +54,6 @@ class MemberSchema(ma.Schema):
 member_schema = MemberSchema()
 members_schema = MemberSchema(many=True)
 
-# Member CRUD functions
-
 
 class MemberListResource(Resource):
     def get(self):
@@ -89,6 +87,10 @@ class MemberResource(Resource):
             member.last_name = request.json['last_name']
         if 'is_admin' in request.json:
             member.is_admin = request.json['is_admin']
+        if 'billing_address_id' in request.json:
+            member.billing_address_id = request.json['billing_address_id']
+        if 'shipping_address_id' in request.json:
+            member.shipping_address_id = request.json['shipping_address_id']
 
         db.session.commit()
         return member_schema.dump(member)
@@ -98,8 +100,6 @@ class MemberResource(Resource):
         db.session.delete(member)
         db.session.commit()
         return '', 204
-
-# Member routing
 
 
 api.add_resource(MemberListResource, '/members')
@@ -222,8 +222,6 @@ class ProductResource(Resource):
         db.session.delete(product)
         db.session.commit()
         return '', 204
-
-# product routing
 
 
 api.add_resource(ProductListResource, '/products')
