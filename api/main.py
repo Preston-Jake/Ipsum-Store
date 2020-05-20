@@ -17,19 +17,42 @@ class Member(db.Model):
     last_name = db.Column(db.String(50))
     is_admin = db.Column(db.Boolean, unique=False, default=False)
 
+    billing_address_id = db.Column(
+        db.Integer,
+        db.ForeignKey("address.id")
+        )
+    shipping_address_id = db.Column(
+        db.Integer,
+        db.ForeignKey("address.id")
+    )
+
+    billing_address = db.relationship(
+        "Address",
+        foreign_keys=[billing_address_id]
+        )
+    shipping_address = db.relationship(
+        "Address",
+        foreign_keys=[shipping_address_id]
+        )
+
     def __repr__(self):
         return '<Member %s>' % self.first_name
 
 
 class MemberSchema(ma.Schema):
     class Meta:
-        fields = ("id", "first_name", "last_name", "is_admin")
+        fields = (
+            "id",
+            "first_name",
+            "last_name",
+            "is_admin",
+            "billing_address_id",
+            "shipping_address_id"
+            )
 
 
 member_schema = MemberSchema()
 members_schema = MemberSchema(many=True)
-
-# Member CRUD functions
 
 
 class MemberListResource(Resource):
@@ -41,7 +64,9 @@ class MemberListResource(Resource):
         new_member = Member(
             first_name=request.json['first_name'],
             last_name=request.json['last_name'],
-            is_admin=request.json['is_admin']
+            is_admin=request.json['is_admin'],
+            billing_address_id=request.json['billing_address_id'],
+            shipping_address_id=request.json['shipping_address_id']
         )
         db.session.add(new_member)
         db.session.commit()
@@ -62,8 +87,10 @@ class MemberResource(Resource):
             member.last_name = request.json['last_name']
         if 'is_admin' in request.json:
             member.is_admin = request.json['is_admin']
-        # if 'member_address_id' in request.json:
-        #     member.member_address_id = request.json['member_address_id']
+        if 'billing_address_id' in request.json:
+            member.billing_address_id = request.json['billing_address_id']
+        if 'shipping_address_id' in request.json:
+            member.shipping_address_id = request.json['shipping_address_id']
 
         db.session.commit()
         return member_schema.dump(member)
@@ -74,8 +101,6 @@ class MemberResource(Resource):
         db.session.commit()
         return '', 204
 
-# Member routing
-
 
 api.add_resource(MemberListResource, '/members')
 api.add_resource(MemberResource, '/members/<int:member_id>')
@@ -83,12 +108,12 @@ api.add_resource(MemberResource, '/members/<int:member_id>')
 
 class Address(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    address_1 = db.Column(db.String(255), nullable=True)
+    address_1 = db.Column(db.String(255), nullable=False)
     address_2 = db.Column(db.String(255), nullable=True)
-    city = db.Column(db.String(255), nullable=True)
-    state = db.Column(db.String(255), nullable=True)
-    country = db.Column(db.String(255), nullable=True)
-    postal_code = db.Column(db.String(255), nullable=True)
+    city = db.Column(db.String(255), nullable=False)
+    state = db.Column(db.String(255), nullable=False)
+    country = db.Column(db.String(255), nullable=False)
+    postal_code = db.Column(db.String(255), nullable=False)
 
     def __repr__(self):
         return '<Address %s>' % self.address_1
@@ -107,7 +132,7 @@ class AddressSchema(ma.Schema):
 
 
 address_schema = AddressSchema()
-addresses_schema = AddressSchema(many=True) 
+addresses_schema = AddressSchema(many=True)
 
 
 class AddressListResource(Resource):
@@ -130,17 +155,44 @@ class AddressListResource(Resource):
         return address_schema.dump(new_address)
 
 
+class AddressResource(Resource):
+
+    def get(self, address_id):
+        address = Address.query.get_or_404(address_id)
+        return address_schema.dump(address)
+
+    def patch(self, address_id):
+        address = Address.query.get_or_404(address_id)
+
+        if 'address_1' in request.json:
+            address.address_1 = request.json['address_1']
+        if 'address_2' in request.json:
+            address.address_2 = request.json['address_2']
+        if 'city' in request.json:
+            address.city = request.json['city']
+        if 'state' in request.json:
+            address.state = request.json['state']
+        if 'country' in request.json:
+            address.country = request.json['country']
+        if 'postal_code' in request.json:
+            address.postal_code = request.json['postal_code']
+        db.session.commit()
+        return address_schema.dump(address)
+
+    def delete(self, address_id):
+        address = Address.query.get_or_404(address_id)
+        db.session.delete(address)
+        db.session.commit()
+
+
 api.add_resource(AddressListResource, '/addresses')
+api.add_resource(AddressResource, '/addresses/<int:address_id>')
 
 
-# Product Model & Schema
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50))
     description = db.Column(db.String())
-
-    # product_option_id = db.Column(db.Integer, ForeignKey('ProductOption.id'))
-    # product_category_id = db.Column(db.Integer, ForeignKey('ProductCategory.id'))
 
     def __repr__(self):
         return '<Product %s>' % self.name
@@ -200,8 +252,6 @@ class ProductResource(Resource):
         db.session.delete(product)
         db.session.commit()
         return '', 204
-
-# product routing
 
 
 api.add_resource(ProductListResource, '/products')
