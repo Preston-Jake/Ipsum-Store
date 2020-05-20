@@ -259,18 +259,47 @@ api.add_resource(ProductResource, '/products/<int:product_id>')
 
 
 # Product Option Model & Schema
-# class ProductOption(db.Model):
-#     __tabelname__ = 'product_option'
-#     id = db.Column(db.Integer, primary_key=True)
-#     product_id = db.Column(db.Integer, ForeignKey('product.id'))
-#     color = db.Column(db.String(50))
-#     wholesale_price = db.Column()
-#     retail_price = db.Column()
-#     precent_off = db.Column()
-#     image_source = db.Column()
+class ProductOption(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(
+        db.Integer,
+        db.ForeignKey("product.id")
+        )
+    color = db.Column(db.String(50))
+    wholesale_price = db.Column(db.Decimal(13, 2), nullable=False)
+    retail_price = db.Column(db.Decimal(13, 2), nullable=False)
+    precent_off = db.Column(db.Integer, nullable=True)
+    image_source = db.Column(db.String(255))
+    product = db.relationship("Product")
 
-# Product Category Model & Schema
+    def __repr__(self):
+        return '<ProductOption %s>' % self.color
 
+
+class ProductOptionSchema(ma.Schema):
+    class meta:
+        fields = (
+            "id",
+            "product_id",
+            "color",
+            "wholesale_price",
+            "retail_price",
+            "percent_off",
+            "image_source"
+            )
+
+
+product_option_schema = ProductOptionSchema()
+product_options_schema = ProductOptionSchema(many=True)
+
+
+class ProductOptionListResource(Resource):
+    def get(self):
+        product_options = Product.query.all()
+        return product_options_schema.dump(product_options)
+
+
+api.add_resource(ProductListResource, '/product_options')
 # class ProductCategory (db.Model):
 #     __tabelname__ = 'product_category'
 #     id = db.Column(db.Integer, primary_key=True)
