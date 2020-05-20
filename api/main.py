@@ -155,10 +155,40 @@ class AddressListResource(Resource):
         return address_schema.dump(new_address)
 
 
+class AddressResource(Resource):
+
+    def get(self, address_id):
+        address = Address.query.get_or_404(address_id)
+        return address_schema.dump(address)
+
+    def patch(self, address_id):
+        address = Address.query.get_or_404(address_id)
+
+        if 'address_1' in request.json:
+            address.address_1 = request.json['address_1']
+        if 'address_2' in request.json:
+            address.address_2 = request.json['address_2']
+        if 'city' in request.json:
+            address.city = request.json['city']
+        if 'state' in request.json:
+            address.state = request.json['state']
+        if 'country' in request.json:
+            address.country = request.json['country']
+        if 'postal_code' in request.json:
+            address.postal_code = request.json['postal_code']
+        db.session.commit()
+        return address_schema.dump(address)
+
+    def delete(self, address_id):
+        address = Address.query.get_or_404(address_id)
+        db.session.delete(address)
+        db.session.commit()
+
+
 api.add_resource(AddressListResource, '/addresses')
+api.add_resource(AddressResource, '/addresses/<int:address_id>')
 
 
-# Product Model & Schema
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50))
