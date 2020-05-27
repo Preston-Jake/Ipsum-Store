@@ -131,8 +131,8 @@ class AddressSchema(ma.Schema):
             "city",
             "country",
             "id",
-            "postal_code"
-            "state",
+            "postal_code",
+            "state"
             )
 
 
@@ -209,7 +209,7 @@ class Product(db.Model):
 class ProductSchema(ma.Schema):
     class Meta:
         fields = (
-            "description"
+            "description",
             "id",
             "name"
             )
