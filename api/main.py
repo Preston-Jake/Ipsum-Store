@@ -10,12 +10,14 @@ db = SQLAlchemy(app)
 ma = Marshmallow(app)
 api = Api(app)
 
+# ==================== MEMBER ===============================
+
 
 class Member(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(50))
-    last_name = db.Column(db.String(50))
+    id = db.Column(db.Integer, primary_key=True)
     is_admin = db.Column(db.Boolean, unique=False, default=False)
+    last_name = db.Column(db.String(50))
 
     billing_address_id = db.Column(
         db.Integer,
@@ -42,11 +44,11 @@ class Member(db.Model):
 class MemberSchema(ma.Schema):
     class Meta:
         fields = (
-            "id",
-            "first_name",
-            "last_name",
-            "is_admin",
             "billing_address_id",
+            "first_name",
+            "id",
+            "is_admin",
+            "last_name",
             "shipping_address_id"
             )
 
@@ -62,10 +64,10 @@ class MemberListResource(Resource):
 
     def post(self):
         new_member = Member(
-            first_name=request.json['first_name'],
-            last_name=request.json['last_name'],
-            is_admin=request.json['is_admin'],
             billing_address_id=request.json['billing_address_id'],
+            first_name=request.json['first_name'],
+            is_admin=request.json['is_admin'],
+            last_name=request.json['last_name'],
             shipping_address_id=request.json['shipping_address_id']
         )
         db.session.add(new_member)
@@ -105,15 +107,17 @@ class MemberResource(Resource):
 api.add_resource(MemberListResource, '/members')
 api.add_resource(MemberResource, '/members/<int:member_id>')
 
+# =============================== ADDRESS =====================================
+
 
 class Address(db.Model):
+    address_1 = db.Column(db.String(255))
+    address_2 = db.Column(db.String(255))
+    city = db.Column(db.String(255))
+    country = db.Column(db.String(255))
     id = db.Column(db.Integer, primary_key=True)
-    address_1 = db.Column(db.String(255), nullable=False)
-    address_2 = db.Column(db.String(255), nullable=True)
-    city = db.Column(db.String(255), nullable=False)
-    state = db.Column(db.String(255), nullable=False)
-    country = db.Column(db.String(255), nullable=False)
-    postal_code = db.Column(db.String(255), nullable=False)
+    postal_code = db.Column(db.String(255))
+    state = db.Column(db.String(255))
 
     def __repr__(self):
         return '<Address %s>' % self.address_1
@@ -122,12 +126,13 @@ class Address(db.Model):
 class AddressSchema(ma.Schema):
     class Meta:
         fields = (
-            "id",
             "address_1",
-            "address_2", "city",
-            "state",
+            "address_2",
+            "city",
             "country",
+            "id",
             "postal_code"
+            "state",
             )
 
 
@@ -146,9 +151,9 @@ class AddressListResource(Resource):
             address_1=request.json['address_1'],
             address_2=request.json['address_2'],
             city=request.json['city'],
-            state=request.json['state'],
             country=request.json['country'],
-            postal_code=request.json['postal_code']
+            postal_code=request.json['postal_code'],
+            state=request.json['state']
         )
         db.session.add(new_address)
         db.session.commit()
@@ -188,11 +193,14 @@ class AddressResource(Resource):
 api.add_resource(AddressListResource, '/addresses')
 api.add_resource(AddressResource, '/addresses/<int:address_id>')
 
+# =================================== PRODUCT =================================
+
 
 class Product(db.Model):
+    description = db.Column(db.String())
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50))
-    description = db.Column(db.String())
+    options = db.relationship("Option")
 
     def __repr__(self):
         return '<Product %s>' % self.name
@@ -200,13 +208,15 @@ class Product(db.Model):
 
 class ProductSchema(ma.Schema):
     class Meta:
-        fields = ("id", "name", "description")
+        fields = (
+            "description"
+            "id",
+            "name"
+            )
 
 
 product_schema = ProductSchema()
 products_schema = ProductSchema(many=True)
-
-# Product CRUD functions
 
 
 class ProductListResource(Resource):
@@ -216,11 +226,8 @@ class ProductListResource(Resource):
 
     def post(self):
         new_product = Product(
-            name=request.json['name'],
             description=request.json['description'],
-
-            # product_option_id=request.json['product_option_id'],
-            # product_category_id=request.json['product_category_id']
+            name=request.json['name'],
         )
         db.session.add(new_product)
         db.session.commit()
@@ -239,10 +246,6 @@ class ProductResource(Resource):
             product.name = request.json['name']
         if 'description' in request.json:
             product.description = request.json['description']
-        # if 'product_option_id' in request.json:
-        #     product.product_option_id = request.json['product_option_id']
-        # if 'product_category_id' in request.json:
-        #     product.product_category_id = request.json['product_category_id']
 
         db.session.commit()
         return product_schema.dump(product)
@@ -258,53 +261,66 @@ api.add_resource(ProductListResource, '/products')
 api.add_resource(ProductResource, '/products/<int:product_id>')
 
 
-# Product Option Model & Schema
-class ProductOption(db.Model):
+# ================== PRODUCT OPTION =================
+
+
+class Option(db.Model):
+    color = db.Column(db.String())
     id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(
-        db.Integer,
-        db.ForeignKey("product.id")
-        )
-    color = db.Column(db.String(50))
-    wholesale_price = db.Column(db.Decimal(13, 2), nullable=False)
-    retail_price = db.Column(db.Decimal(13, 2), nullable=False)
-    precent_off = db.Column(db.Integer, nullable=True)
-    image_source = db.Column(db.String(255))
-    product = db.relationship("Product")
+    image_source = db.Column(db.String())
+    percent_off = db.Column(db.Integer())
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'))
+    retail_price = db.Column(db.Integer())
+    wholesale_price = db.Column(db.Integer())
 
     def __repr__(self):
-        return '<ProductOption %s>' % self.color
+        return '<Option %s>' % self.color
 
 
-class ProductOptionSchema(ma.Schema):
-    class meta:
+class OptionSchema(ma.Schema):
+    class Meta:
         fields = (
-            "id",
-            "product_id",
             "color",
-            "wholesale_price",
-            "retail_price",
+            "id",
+            "image_source",
             "percent_off",
-            "image_source"
+            "product_id",
+            "retail_price",
+            "wholesale_price"
             )
 
 
-product_option_schema = ProductOptionSchema()
-product_options_schema = ProductOptionSchema(many=True)
+option_schema = OptionSchema()
+options_schema = OptionSchema(many=True)
 
 
-class ProductOptionListResource(Resource):
+class OptionListResource(Resource):
     def get(self):
-        product_options = Product.query.all()
-        return product_options_schema.dump(product_options)
+        options = Option.query.all()
+        return options_schema.dump(options)
+
+    def post(self):
+        new_option = Option(
+            color=request.json['color'],
+            image_source=request.json['image_source'],
+            percent_off=request.json['percent_off'],
+            product_id=request.json['product_id'],
+            retail_price=request.json['retail_price'],
+            wholesale_price=request.json['wholesale_price']
+        )
+        db.session.add(new_option)
+        db.session.commit()
+        option_schema.dump(new_option)
 
 
-api.add_resource(ProductListResource, '/product_options')
-# class ProductCategory (db.Model):
-#     __tabelname__ = 'product_category'
-#     id = db.Column(db.Integer, primary_key=True)
-#     product_type = db.Column(db.String)
-#     product_gender = db.Column(db.String)
+api.add_resource(OptionListResource, '/options')
+
+
+# # class ProductCategory (db.Model):
+# #     __tabelname__ = 'product_category'
+# #     id = db.Column(db.Integer, primary_key=True)
+# #     product_type = db.Column(db.String)
+# #     product_gender = db.Column(db.String)
 
 
 if __name__ == '__main__':
