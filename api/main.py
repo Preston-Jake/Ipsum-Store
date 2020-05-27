@@ -211,7 +211,7 @@ class ProductSchema(ma.Schema):
         fields = (
             "description",
             "id",
-            "name"
+            "name",
             )
 
 
@@ -313,7 +313,39 @@ class OptionListResource(Resource):
         option_schema.dump(new_option)
 
 
+class OptionResource(Resource):
+    def get(self, option_id):
+        option = Option.query.get_or_404(option_id)
+        return option_schema.dump(option)
+
+    def patch(self, option_id):
+        option = Option.quert.get_or_404(option_id)
+
+        if 'color' in request.json:
+            option.color = request.json['color']
+        if 'image_source' in request.json:
+            option.image_source = request.json['image_source']
+        if 'percent_off' in request.json:
+            option.percent_off = request.json['percent_off']
+        if 'product_id' in request.json:
+            option.product_id = request.json['product_id']
+        if 'retail_price' in request.json:
+            option.retail_price = request.json['retail_price']
+        if 'wholesale_price' in request.json:
+            option.wholesale_price = request.json['wholesale_price']
+
+        db.session.commit()
+        return option_schema.dump(option)
+
+    def delete(self, option_id):
+        option = Option.query.get_or_404(option_id)
+        db.session.delete(option)
+        db.session.commit()
+        return '', 204
+
+
 api.add_resource(OptionListResource, '/options')
+api.add_resource(OptionResource, '/options/<int:option_id>')
 
 
 # # class ProductCategory (db.Model):
