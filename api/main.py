@@ -211,7 +211,7 @@ class ProductSchema(ma.Schema):
         fields = (
             "description",
             "id",
-            "name"
+            "name",
             )
 
 
@@ -313,14 +313,111 @@ class OptionListResource(Resource):
         option_schema.dump(new_option)
 
 
+class OptionResource(Resource):
+    def get(self, option_id):
+        option = Option.query.get_or_404(option_id)
+        return option_schema.dump(option)
+
+    def patch(self, option_id):
+        option = Option.quert.get_or_404(option_id)
+
+        if 'color' in request.json:
+            option.color = request.json['color']
+        if 'image_source' in request.json:
+            option.image_source = request.json['image_source']
+        if 'percent_off' in request.json:
+            option.percent_off = request.json['percent_off']
+        if 'product_id' in request.json:
+            option.product_id = request.json['product_id']
+        if 'retail_price' in request.json:
+            option.retail_price = request.json['retail_price']
+        if 'wholesale_price' in request.json:
+            option.wholesale_price = request.json['wholesale_price']
+
+        db.session.commit()
+        return option_schema.dump(option)
+
+    def delete(self, option_id):
+        option = Option.query.get_or_404(option_id)
+        db.session.delete(option)
+        db.session.commit()
+        return '', 204
+
+
 api.add_resource(OptionListResource, '/options')
+api.add_resource(OptionResource, '/options/<int:option_id>')
 
 
-# # class ProductCategory (db.Model):
-# #     __tabelname__ = 'product_category'
-# #     id = db.Column(db.Integer, primary_key=True)
-# #     product_type = db.Column(db.String)
-# #     product_gender = db.Column(db.String)
+# ===================== CATEGORY =========================
+
+
+class Category (db.Model):
+    gender = db.Column(db.String())
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'))
+    type = db.Column(db.String())
+
+    def __repr__(self):
+        return '<Option %s>' % self.product_id
+
+
+class CategorySchema(ma.Schema):
+    class Meta:
+        fields = (
+            "gender",
+            "id",
+            "product_id",
+            "type"
+        )
+
+
+category_schema = CategorySchema()
+categories_schema = CategorySchema(many=True)
+
+
+class CategoryListResource(Resource):
+    def get(self):
+        categories = Category.query.all()
+        return categories_schema(categories)
+
+    def post(self):
+        new_category = Category(
+            gender=request.json['gender'],
+            product_id=request.json['product_id'],
+            type=request.json['type']
+        )
+        db.session.add(new_category)
+        db.session.commit()
+        return category_schema(new_category)
+
+
+class CategoryResource(Resource):
+    def get(self, category_id):
+        category = Category.query.get_or_404(category_id)
+        return category_schema.dump(category)
+
+    def patch(self, category_id):
+        category = Category.query.get_or_404(category_id)
+
+        if 'gender' in request.json:
+            category.gender = request.json['gender']
+        if 'product_id' in request.json:
+            category.product_id = request.json['product_id']
+        if 'type' in request.json:
+            category.type = request.json['type']
+
+        db.session.commit()
+        return category_schema(category)
+
+    def delete(self, category_id):
+        category = Category.query.get_or_404(category_id)
+        db.session.delete(category)
+        db.session.commit()
+        return '', 204
+
+
+api.add_resource(CategoryListResource, '/categories')
+api.add_resource(CategoryResource, '/products/<int:category_id>')
 
 
 if __name__ == '__main__':
