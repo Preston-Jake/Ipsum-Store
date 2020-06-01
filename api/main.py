@@ -466,5 +466,25 @@ class CartListResource(Resource):
         cart_schema.dump(new_cart)
 
 
+class CartResource(Resource):
+    def get(self, cart_id):
+        cart = Cart.query.get_or_404(cart_id)
+        return cart_schema.dump(cart)
+
+    def patch(self, cart_id):
+        cart = Cart.query.get_or_404(cart_id)
+
+        if 'member_id' in request.json:
+            cart.member_id = request.json['member_id']
+        if 'option_id' in request.json:
+            cart.option_id = request.json['option_id']
+
+        db.session.commit()
+        return cart_schema.dump(cart)
+
+
+api.add_resource(OptionListResource, '/cart')
+api.add_resource(OptionResource, '/cart/<int:cart_id>')
+
 if __name__ == '__main__':
     app.run(debug=True)
