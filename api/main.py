@@ -10,7 +10,7 @@ db = SQLAlchemy(app)
 ma = Marshmallow(app)
 api = Api(app)
 
-# ==================== MEMBER ===============================
+# =============================== MEMBER ===============================
 
 
 class Member(db.Model):
@@ -107,7 +107,7 @@ class MemberResource(Resource):
 api.add_resource(MemberListResource, '/members')
 api.add_resource(MemberResource, '/members/<int:member_id>')
 
-# =============================== ADDRESS =====================================
+# =============================== ADDRESS ===============================
 
 
 class Address(db.Model):
@@ -193,7 +193,7 @@ class AddressResource(Resource):
 api.add_resource(AddressListResource, '/addresses')
 api.add_resource(AddressResource, '/addresses/<int:address_id>')
 
-# =================================== PRODUCT =================================
+# =============================== PRODUCT ===============================
 
 
 class Product(db.Model):
@@ -261,7 +261,7 @@ api.add_resource(ProductListResource, '/products')
 api.add_resource(ProductResource, '/products/<int:product_id>')
 
 
-# ================== PRODUCT OPTION =================
+# =============================== OPTION ===============================
 
 
 class Option(db.Model):
@@ -269,7 +269,14 @@ class Option(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     image_source = db.Column(db.String())
     percent_off = db.Column(db.Integer())
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'))
+    product = db.relationship(
+        "Product",
+        foreign_keys="Option.product_id"
+        )
+    product_id = db.Column(
+        db.Integer,
+        db.ForeignKey("product.id")
+        )
     retail_price = db.Column(db.Integer())
     wholesale_price = db.Column(db.Integer())
 
@@ -348,7 +355,7 @@ api.add_resource(OptionListResource, '/options')
 api.add_resource(OptionResource, '/options/<int:option_id>')
 
 
-# ===================== CATEGORY =========================
+# =============================== CATEGORY ===============================
 
 
 class Category (db.Model):
@@ -418,6 +425,25 @@ class CategoryResource(Resource):
 
 api.add_resource(CategoryListResource, '/categories')
 api.add_resource(CategoryResource, '/products/<int:category_id>')
+
+# =============================== CART ===============================
+# join table between meember and option
+
+
+class Cart(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    member_id = db.Column(db.Integer, db.ForeignKey('member.id'))
+    option_id = db.Column(db.Integer, db.ForeignKey('option.id'))
+    member = db.relationship("Member")
+    option = db.relationship("Option")
+
+
+class CartSchema(ma.Schema):
+    class Meta:
+        fields = (
+            "id",
+            "member_id"
+        )
 
 
 if __name__ == '__main__':
