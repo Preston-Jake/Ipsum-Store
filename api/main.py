@@ -442,8 +442,29 @@ class CartSchema(ma.Schema):
     class Meta:
         fields = (
             "id",
-            "member_id"
+            "member_id",
+            "option_id"
         )
+
+
+cart_schema = CartSchema()
+carts_schema = CartSchema(many=True)
+
+
+class CartListResource(Resource):
+    def get(self):
+        carts = Cart.quert.all()
+        return carts_schema.dump(carts)
+
+    def post(self):
+        new_cart = Cart(
+            member_id=request.json['member_id'],
+            option_id=request.json['option_id']
+        )
+        db.session.add(new_cart)
+        db.session.commit()
+        cart_schema.dump(new_cart)
+
 
 
 if __name__ == '__main__':
