@@ -483,8 +483,8 @@ class CartResource(Resource):
         return cart_schema.dump(cart)
 
 
-api.add_resource(OptionListResource, '/cart')
-api.add_resource(OptionResource, '/cart/<int:cart_id>')
+api.add_resource(CartListResource, '/cart')
+api.add_resource(CartResource, '/cart/<int:cart_id>')
 
 if __name__ == '__main__':
     app.run(debug=True)
