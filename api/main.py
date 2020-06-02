@@ -453,7 +453,7 @@ carts_schema = CartSchema(many=True)
 
 class CartListResource(Resource):
     def get(self):
-        carts = Cart.quert.all()
+        carts = Cart.query.all()
         return carts_schema.dump(carts)
 
     def post(self):
@@ -483,8 +483,8 @@ class CartResource(Resource):
         return cart_schema.dump(cart)
 
 
-api.add_resource(CartListResource, '/cart')
-api.add_resource(CartResource, '/cart/<int:cart_id>')
+api.add_resource(CartListResource, '/carts')
+api.add_resource(CartResource, '/carts/<int:cart_id>')
 
 if __name__ == '__main__':
     app.run(debug=True)
