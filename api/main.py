@@ -22,13 +22,13 @@ auth = HTTPBasicAuth()
 @auth.verify_password
 def verify_password(username_or_token, password):
     # first try to authenticate by token
-    User = User.verify_auth_token(username_or_token)
-    if not User:
+    user = User.verify_auth_token(username_or_token)
+    if not user:
         # try to authenticate with username/password
-        User = User.query.filter_by(username=username_or_token).first()
-        if not User or not User.verify_password(password):
+        user = User.query.filter_by(username=username_or_token).first()
+        if not user or not User.verify_password(password):
             return False
-    g.User = User
+    g.user = user
     return True
 
 
@@ -37,24 +37,26 @@ def verify_password(username_or_token, password):
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    role = db.Column(db.String(50))
-    username = db.Column(db.String(255))
-    password_hash = db.Column(db.String(32), index=True)
-    billing_address = db.relationship(
-        "Address", foreign_keys=['billing_address_id']
-    )
+    username = db.Column(db.String(32), index=True)
+    password_hash = db.Column(db.String(128))
+    role = db.Column(db.String(128))
+
     billing_address_id = db.Column(
         db.Integer, db.ForeignKey("address.id"), nullable=True
-    )
-    shipping_address = db.relationship(
-        "Address", foreign_keys=['shipping_address_id']
     )
     shipping_address_id = db.Column(
         db.Integer, db.ForeignKey("address.id"), nullable=True
     )
 
+    billing_address = db.relationship(
+        "Address", foreign_keys=['billing_address_id']
+    )
+    shipping_address = db.relationship(
+        "Address", foreign_keys=['shipping_address_id']
+    )
+
     def __repr__(self):
-        return '<User %s>' % self.first_name
+        return '<User %s>' % self.username
 
     def hash_pasword(self, password):
         self.password_hash = pwd_context.encrypt(password)
@@ -82,12 +84,10 @@ class User(db.Model):
 class UserSchema(ma.Schema):
     class Meta:
         fields = (
-            "billing_address_id",
-            "email"
-            "first_name",
             "id",
-            "last_name",
-            "shipping_address_id",
+            "username",
+            "billing_address_id",
+            "shipping_address_id"
             )
 
 
@@ -101,58 +101,55 @@ class UserListResource(Resource):
         return Users_schema.dump(Users)
 
     def post(self):
-        email = request.json['email']
+        username = request.json['username']
         password = request.json['password']
-        if email is None or password is None:
+        if username is None or password is None:
             api.abort(400)
-        if User.query.filter_by(email=email).first() is not None:
+        if User.query.filter_by(username=username).first() is not None:
             api.abort(400)
-        User = User(
+        new_user = User(
+            username=username,
+            role=request.json['role'],
             billing_address_id=request.json['billing_address_id'],
-            email=email,
-            first_name=request.json['first_name'],
-            is_admin=request.json['is_admin'],
-            last_name=request.json['last_name'],
             shipping_address_id=request.json['shipping_address_id']
         )
         User.hash_pasword(password)
-        db.session.add(User)
+        db.session.add(new_user)
         db.session.commit()
-        return User_schema.dump(User)
+        return User_schema.dump(new_user)
 
 
 class UserResource(Resource):
     @auth.login_required
-    def get(self, User_id):
-        User = User.query.get_or_404(User_id)
-        return User_schema.dump(User)
+    def get(self, user_id):
+        user = User.query.get_or_404(user_id)
+        return User_schema.dump(user)
 
-    def patch(self, User_id):
-        User = User.query.get_or_404(User_id)
+    def patch(self, user_id):
+        user = User.query.get_or_404(user_id)
 
-        if 'first_name' in request.json:
-            User.first_name = request.json['first_name']
-        if 'last_name' in request.json:
-            User.last_name = request.json['last_name']
-        if 'is_admin' in request.json:
-            User.is_admin = request.json['is_admin']
+        if 'username' in request.json:
+            User.username = request.json['username']
+        if 'password' in request.json:
+            password_hash = User.hash_pasword(request.json['password']) 
+            User.password_hash = password_hash
         if 'billing_address_id' in request.json:
             User.billing_address_id = request.json['billing_address_id']
         if 'shipping_address_id' in request.json:
             User.shipping_address_id = request.json['shipping_address_id']
 
         db.session.commit()
-        return User_schema.dump(User)
+        return User_schema.dump(user)
 
-    def delete(self, User_id):
-        User = User.query.get_or_404(User_id)
-        db.session.delete(User)
+    def delete(self, user_id):
+        user = User.query.get_or_404(user_id)
+        db.session.delete(user)
         db.session.commit()
         return '', 204
 
 
-api.add_resource(UserListResource, '/Users')
-api.add_resource(UserResource, '/Users/<int:User_id>')
+api.add_resource(UserListResource, '/users')
+api.add_resource(UserResource, '/users/<int:user_id>')
 
 
 # =============================== ADDRESS ===============================
@@ -479,9 +476,9 @@ api.add_resource(OptionResource, '/options/<int:option_id>')
 
 class Cart(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    User_id = db.Column(db.Integer, db.ForeignKey('User.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     option_id = db.Column(db.Integer, db.ForeignKey('option.id'))
-    User = db.relationship("User")
+    user = db.relationship("User")
     option = db.relationship("Option")
 
 
@@ -489,7 +486,7 @@ class CartSchema(ma.Schema):
     class Meta:
         fields = (
             "id",
-            "User_id",
+            "user_id",
             "option_id"
         )
 
@@ -505,7 +502,7 @@ class CartListResource(Resource):
 
     def post(self):
         new_cart = Cart(
-            User_id=request.json['User_id'],
+            User_id=request.json['user_id'],
             option_id=request.json['option_id']
         )
         db.session.add(new_cart)
@@ -521,8 +518,8 @@ class CartResource(Resource):
     def patch(self, cart_id):
         cart = Cart.query.get_or_404(cart_id)
 
-        if 'User_id' in request.json:
-            cart.User_id = request.json['User_id']
+        if 'user_id' in request.json:
+            cart.user_id = request.json['user_ids']
         if 'option_id' in request.json:
             cart.option_id = request.json['option_id']
 
