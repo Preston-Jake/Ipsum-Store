@@ -1,111 +1,159 @@
-from flask import Flask, request
+from flask import Flask, request, abort, g
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_restful import Api, Resource
-
+from passlib.apps import custom_app_context as pwd_context
+from flask_httpauth import HTTPBasicAuth
+from itsdangerous import (TimedJSONWebSignatureSerializer
+                          as Serializer, BadSignature, SignatureExpired)
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'the quick brown fox jumps over the lazy dog'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ipsum.db'
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
 api = Api(app)
+auth = HTTPBasicAuth()
 
-# =============================== MEMBER ===============================
+
+# =============================== AUTH ===============================
 
 
-class Member(db.Model):
-    first_name = db.Column(db.String(50))
+@auth.verify_password
+def verify_password(username_or_token, password):
+    # first try to authenticate by token
+    User = User.verify_auth_token(username_or_token)
+    if not User:
+        # try to authenticate with username/password
+        User = User.query.filter_by(username=username_or_token).first()
+        if not User or not User.verify_password(password):
+            return False
+    g.User = User
+    return True
+
+
+#  =============================== User ===============================
+
+
+class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    is_admin = db.Column(db.Boolean, unique=False, default=False)
-    last_name = db.Column(db.String(50))
-
+    role = db.Column(db.String(50))
+    username = db.Column(db.String(255))
+    password_hash = db.Column(db.String(32), index=True)
+    billing_address = db.relationship(
+        "Address", foreign_keys=['billing_address_id']
+    )
     billing_address_id = db.Column(
-        db.Integer,
-        db.ForeignKey("address.id")
-        )
+        db.Integer, db.ForeignKey("address.id"), nullable=True
+    )
+    shipping_address = db.relationship(
+        "Address", foreign_keys=['shipping_address_id']
+    )
     shipping_address_id = db.Column(
-        db.Integer,
-        db.ForeignKey("address.id")
+        db.Integer, db.ForeignKey("address.id"), nullable=True
     )
 
-    billing_address = db.relationship(
-        "Address",
-        foreign_keys=[billing_address_id]
-        )
-    shipping_address = db.relationship(
-        "Address",
-        foreign_keys=[shipping_address_id]
-        )
-
     def __repr__(self):
-        return '<Member %s>' % self.first_name
+        return '<User %s>' % self.first_name
+
+    def hash_pasword(self, password):
+        self.password_hash = pwd_context.encrypt(password)
+
+    def verify_password(self, password):
+        return pwd_context.verify(password, self.password_hash)
+
+    def generate_auth_token(self, expiration=600):
+        s = Serializer(app.config['SECRET_KEY'], expires_in=expiration)
+        return s.dumps({'id': self.id})
+
+    @staticmethod
+    def verify_auth_token(token):
+        s = Serializer(app.config['SECRET_KEY'])
+        try:
+            data = s.loads(token)
+        except SignatureExpired:
+            return None
+        except BadSignature:
+            return None
+        User = User.query.get(data['id'])
+        return User
 
 
-class MemberSchema(ma.Schema):
+class UserSchema(ma.Schema):
     class Meta:
         fields = (
             "billing_address_id",
+            "email"
             "first_name",
             "id",
-            "is_admin",
             "last_name",
-            "shipping_address_id"
+            "shipping_address_id",
             )
 
 
-member_schema = MemberSchema()
-members_schema = MemberSchema(many=True)
+User_schema = UserSchema()
+Users_schema = UserSchema(many=True)
 
 
-class MemberListResource(Resource):
+class UserListResource(Resource):
     def get(self):
-        members = Member.query.all()
-        return members_schema.dump(members)
+        Users = User.query.all()
+        return Users_schema.dump(Users)
 
     def post(self):
-        new_member = Member(
+        email = request.json['email']
+        password = request.json['password']
+        if email is None or password is None:
+            api.abort(400)
+        if User.query.filter_by(email=email).first() is not None:
+            api.abort(400)
+        User = User(
             billing_address_id=request.json['billing_address_id'],
+            email=email,
             first_name=request.json['first_name'],
             is_admin=request.json['is_admin'],
             last_name=request.json['last_name'],
             shipping_address_id=request.json['shipping_address_id']
         )
-        db.session.add(new_member)
+        User.hash_pasword(password)
+        db.session.add(User)
         db.session.commit()
-        return member_schema.dump(new_member)
+        return User_schema.dump(User)
 
 
-class MemberResource(Resource):
-    def get(self, member_id):
-        member = Member.query.get_or_404(member_id)
-        return member_schema.dump(member)
+class UserResource(Resource):
+    @auth.login_required
+    def get(self, User_id):
+        User = User.query.get_or_404(User_id)
+        return User_schema.dump(User)
 
-    def patch(self, member_id):
-        member = Member.query.get_or_404(member_id)
+    def patch(self, User_id):
+        User = User.query.get_or_404(User_id)
 
         if 'first_name' in request.json:
-            member.first_name = request.json['first_name']
+            User.first_name = request.json['first_name']
         if 'last_name' in request.json:
-            member.last_name = request.json['last_name']
+            User.last_name = request.json['last_name']
         if 'is_admin' in request.json:
-            member.is_admin = request.json['is_admin']
+            User.is_admin = request.json['is_admin']
         if 'billing_address_id' in request.json:
-            member.billing_address_id = request.json['billing_address_id']
+            User.billing_address_id = request.json['billing_address_id']
         if 'shipping_address_id' in request.json:
-            member.shipping_address_id = request.json['shipping_address_id']
+            User.shipping_address_id = request.json['shipping_address_id']
 
         db.session.commit()
-        return member_schema.dump(member)
+        return User_schema.dump(User)
 
-    def delete(self, member_id):
-        member = Member.query.get_or_404(member_id)
-        db.session.delete(member)
+    def delete(self, User_id):
+        User = User.query.get_or_404(User_id)
+        db.session.delete(User)
         db.session.commit()
         return '', 204
 
 
-api.add_resource(MemberListResource, '/members')
-api.add_resource(MemberResource, '/members/<int:member_id>')
+api.add_resource(UserListResource, '/Users')
+api.add_resource(UserResource, '/Users/<int:User_id>')
+
 
 # =============================== ADDRESS ===============================
 
@@ -141,7 +189,6 @@ addresses_schema = AddressSchema(many=True)
 
 
 class AddressListResource(Resource):
-
     def get(self):
         addresses = Address.query.all()
         return addresses_schema.dump(addresses)
@@ -161,7 +208,6 @@ class AddressListResource(Resource):
 
 
 class AddressResource(Resource):
-
     def get(self, address_id):
         address = Address.query.get_or_404(address_id)
         return address_schema.dump(address)
@@ -192,6 +238,7 @@ class AddressResource(Resource):
 
 api.add_resource(AddressListResource, '/addresses')
 api.add_resource(AddressResource, '/addresses/<int:address_id>')
+
 
 # =============================== PRODUCT ===============================
 
@@ -358,83 +405,83 @@ api.add_resource(OptionResource, '/options/<int:option_id>')
 # =============================== CATEGORY ===============================
 
 
-class Category (db.Model):
-    gender = db.Column(db.String())
-    id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'))
-    type = db.Column(db.String())
+# class Category (db.Model):
+#     gender = db.Column(db.String())
+#     id = db.Column(db.Integer, primary_key=True)
+#     product_id = db.Column(db.Integer, db.ForeignKey('product.id'))
+#     type = db.Column(db.String())
 
-    def __repr__(self):
-        return '<Option %s>' % self.product_id
-
-
-class CategorySchema(ma.Schema):
-    class Meta:
-        fields = (
-            "gender",
-            "id",
-            "product_id",
-            "type"
-        )
+#     def __repr__(self):
+#         return '<Option %s>' % self.product_id
 
 
-category_schema = CategorySchema()
-categories_schema = CategorySchema(many=True)
+# class CategorySchema(ma.Schema):
+#     class Meta:
+#         fields = (
+#             "gender",
+#             "id",
+#             "product_id",
+#             "type"
+#         )
 
 
-class CategoryListResource(Resource):
-    def get(self):
-        categories = Category.query.all()
-        return categories_schema(categories)
-
-    def post(self):
-        new_category = Category(
-            gender=request.json['gender'],
-            product_id=request.json['product_id'],
-            type=request.json['type']
-        )
-        db.session.add(new_category)
-        db.session.commit()
-        return category_schema(new_category)
+# category_schema = CategorySchema()
+# categories_schema = CategorySchema(many=True)
 
 
-class CategoryResource(Resource):
-    def get(self, category_id):
-        category = Category.query.get_or_404(category_id)
-        return category_schema.dump(category)
+# class CategoryListResource(Resource):
+#     def get(self):
+#         categories = Category.query.all()
+#         return categories_schema(categories)
 
-    def patch(self, category_id):
-        category = Category.query.get_or_404(category_id)
-
-        if 'gender' in request.json:
-            category.gender = request.json['gender']
-        if 'product_id' in request.json:
-            category.product_id = request.json['product_id']
-        if 'type' in request.json:
-            category.type = request.json['type']
-
-        db.session.commit()
-        return category_schema(category)
-
-    def delete(self, category_id):
-        category = Category.query.get_or_404(category_id)
-        db.session.delete(category)
-        db.session.commit()
-        return '', 204
+#     def post(self):
+#         new_category = Category(
+#             gender=request.json['gender'],
+#             product_id=request.json['product_id'],
+#             type=request.json['type']
+#         )
+#         db.session.add(new_category)
+#         db.session.commit()
+#         return category_schema(new_category)
 
 
-api.add_resource(CategoryListResource, '/categories')
-api.add_resource(CategoryResource, '/products/<int:category_id>')
+# class CategoryResource(Resource):
+#     def get(self, category_id):
+#         category = Category.query.get_or_404(category_id)
+#         return category_schema.dump(category)
+
+#     def patch(self, category_id):
+#         category = Category.query.get_or_404(category_id)
+
+#         if 'gender' in request.json:
+#             category.gender = request.json['gender']
+#         if 'product_id' in request.json:
+#             category.product_id = request.json['product_id']
+#         if 'type' in request.json:
+#             category.type = request.json['type']
+
+#         db.session.commit()
+#         return category_schema(category)
+
+#     def delete(self, category_id):
+#         category = Category.query.get_or_404(category_id)
+#         db.session.delete(category)
+#         db.session.commit()
+#         return '', 204
+
+
+# api.add_resource(CategoryListResource, '/categories')
+# api.add_resource(CategoryResource, '/products/<int:category_id>')
+
 
 # =============================== CART ===============================
-# join table between meember and option
 
 
 class Cart(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    member_id = db.Column(db.Integer, db.ForeignKey('member.id'))
+    User_id = db.Column(db.Integer, db.ForeignKey('User.id'))
     option_id = db.Column(db.Integer, db.ForeignKey('option.id'))
-    member = db.relationship("Member")
+    User = db.relationship("User")
     option = db.relationship("Option")
 
 
@@ -442,7 +489,7 @@ class CartSchema(ma.Schema):
     class Meta:
         fields = (
             "id",
-            "member_id",
+            "User_id",
             "option_id"
         )
 
@@ -458,7 +505,7 @@ class CartListResource(Resource):
 
     def post(self):
         new_cart = Cart(
-            member_id=request.json['member_id'],
+            User_id=request.json['User_id'],
             option_id=request.json['option_id']
         )
         db.session.add(new_cart)
@@ -474,8 +521,8 @@ class CartResource(Resource):
     def patch(self, cart_id):
         cart = Cart.query.get_or_404(cart_id)
 
-        if 'member_id' in request.json:
-            cart.member_id = request.json['member_id']
+        if 'User_id' in request.json:
+            cart.User_id = request.json['User_id']
         if 'option_id' in request.json:
             cart.option_id = request.json['option_id']
 
