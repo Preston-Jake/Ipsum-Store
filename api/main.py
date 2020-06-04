@@ -49,10 +49,10 @@ class User(db.Model):
     )
 
     billing_address = db.relationship(
-        "Address", foreign_keys=['billing_address_id']
+        "Address", foreign_keys=[billing_address_id]
     )
     shipping_address = db.relationship(
-        "Address", foreign_keys=['shipping_address_id']
+        "Address", foreign_keys=[shipping_address_id]
     )
 
     def __repr__(self):
@@ -120,7 +120,6 @@ class UserListResource(Resource):
 
 
 class UserResource(Resource):
-    @auth.login_required
     def get(self, user_id):
         user = User.query.get_or_404(user_id)
         return User_schema.dump(user)
@@ -519,7 +518,7 @@ class CartResource(Resource):
         cart = Cart.query.get_or_404(cart_id)
 
         if 'user_id' in request.json:
-            cart.user_id = request.json['user_ids']
+            cart.user_id = request.json['user_id']
         if 'option_id' in request.json:
             cart.option_id = request.json['option_id']
 

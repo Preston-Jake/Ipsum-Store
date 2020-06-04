@@ -12,8 +12,6 @@ function App() {
       <Router>
         <Switch>
           <Route path="/" exact component={IpsumStore}/>
-          <Route path="/women" render={() => <h1>Women</h1>}/>
-          <Route path="/men" render={() => <h1>Men</h1>}/>
         </Switch>
         <Nav/>
       </Router>      

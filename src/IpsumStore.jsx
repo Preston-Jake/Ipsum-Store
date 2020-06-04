@@ -7,7 +7,7 @@ const IpsumStore = () => {
               <TopNav/>
               <section className="">
                 <h2>Modern Clothing</h2>
-                <h2>&</h2>
+                <h2>For</h2>
                 <h2>Today's People </h2>
               </section>
               <section>

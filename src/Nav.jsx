@@ -7,6 +7,7 @@ const Nav = () => {
             <RoundButton route="" />
             <RoundButton route="" />
             <RoundButton route="" />
+            <RoundButton route="" />
         </nav>
     );
 }
