@@ -14,7 +14,7 @@ const IpsumStore = () => {
                   <HorizontalButton route='women' title="Shop Women"/>
                   <HorizontalButton route='men' title="Shop Men"/>
               </section>
-                  <p>carousel</p>
+                  <p>carousel</p> 
         </div>
     );
 }

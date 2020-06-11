@@ -24,7 +24,8 @@
       work correctly both with client-side routing and a non-root public URL.
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
-    <title>React App</title>
+    <title>Ipsum Store</title>
+    <!-- The core Firebase JS SDK is always required and must be listed first -->
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
@@ -39,5 +40,29 @@
       To begin the development, run `npm start` or `yarn start`.
       To create a production bundle, use `npm run build` or `yarn build`.
     -->
+    <script src="https://www.gstatic.com/firebasejs/7.15.0/firebase-app.js"></script>
+
+    <!-- TODO: Add SDKs for Firebase products that you want to use
+        https://firebase.google.com/docs/web/setup#available-libraries -->
+    <script src="https://www.gstatic.com/firebasejs/7.15.0/firebase-analytics.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/7.15.0/firebase-firestore.js"></script>
+
+    <script>
+      // Your web app's Firebase configuration
+      var firebaseConfig = {
+        apiKey: "AIzaSyCNNUy6sfrhxnYEb4BdD3SvgJc51OFTIrI",
+        authDomain: "ipsum-store.firebaseapp.com",
+        databaseURL: "https://ipsum-store.firebaseio.com",
+        projectId: "ipsum-store",
+        storageBucket: "ipsum-store.appspot.com",
+        messagingSenderId: "365088760906",
+        appId: "1:365088760906:web:6e3993b5830bc870c632b3",
+        measurementId: "G-E0SCG9NY3H",
+      };
+      // Initialize Firebase
+      firebase.initializeApp(firebaseConfig);
+      firebase.analytics();
+      firebase.storageBucket()
+    </script>
   </body>
 </html>
